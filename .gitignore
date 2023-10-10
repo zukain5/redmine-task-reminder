@@ -1,0 +1,6 @@
+# AWS
+.aws-sam/
+template.yaml
+
+# Config
+function/user_mapping.json

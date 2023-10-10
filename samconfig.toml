@@ -1,9 +1,0 @@
-version = 0.1
-[default]
-[default.deploy]
-[default.deploy.parameters]
-stack_name = "redmine-task-reminder"
-region = "ap-northeast-1"
-capabilities = "CAPABILITY_NAMED_IAM"
-resolve_s3 = true
-confirm_changeset = true

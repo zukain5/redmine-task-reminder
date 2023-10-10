@@ -2,6 +2,7 @@ import json
 import logging
 import os
 from datetime import datetime
+from pathlib import Path
 
 from redminelib import Redmine
 from slack_sdk import WebClient
@@ -71,17 +72,6 @@ def notify_slack(overdue_issues, get_succeeded):
     return response
 
 
-def notify_slack_error():
-    client = slack_client()
-
-    channel_id = os.environ["SLACK_CHANNEL_ID"]
-    response = client.chat_postMessage(
-        channel=channel_id,
-        text=':warning: 期限切れタスクの通知に失敗しましたぞ。修正してくだされ。 :warning:',
-    )
-    return response
-
-
 def build_blocks(overdue_issues):
     first_message = {
         "type": "section",
@@ -96,10 +86,7 @@ def build_blocks(overdue_issues):
     }
 
     blocks = [first_message, divider]
-
-    with open('user_mapping.json') as f:
-        user_mapping = json.load(f)
-
+    user_mapping = get_user_mapping()
     for issue in overdue_issues:
         issue_message = {
             "type": "section",
@@ -109,9 +96,7 @@ def build_blocks(overdue_issues):
             }
         }
 
-        redmine_user_id = issue.assigned_to.id if hasattr(issue, 'assigned_to') else None
-        user_slack_id = user_mapping.get(str(redmine_user_id), None)
-        assignee = f"<@{user_slack_id}>" if user_slack_id else "なし"
+        assignee = format_assignee(issue, user_mapping)
         context_text = f"締切：{issue.due_date}\n担当：{assignee}\nプロジェクト：{issue.project.name}"
 
         context_message = {
@@ -129,3 +114,34 @@ def build_blocks(overdue_issues):
         blocks.append(divider)
 
     return blocks
+
+
+def get_user_mapping():
+    path = Path('user_mapping.json')
+    if not path.exists():
+        logger.info('user_mapping.json does not exist.')
+        return None
+
+    try:
+        with path.open() as f:
+            user_mapping = json.load(f)
+    except json.JSONDecodeError:
+        logger.exception('Failed to parse user_mapping.json.')
+        return None
+
+    return user_mapping
+
+
+def format_assignee(issue, user_mapping):
+    if not hasattr(issue, 'assigned_to'):
+        return "なし"
+
+    if user_mapping is None:
+        return issue.assigned_to.name
+
+    redmine_user_id = str(issue.assigned_to.id)
+    if redmine_user_id not in user_mapping:
+        return issue.assigned_to.name
+
+    user_slack_id = user_mapping[redmine_user_id]
+    return f"<@{user_slack_id}>"

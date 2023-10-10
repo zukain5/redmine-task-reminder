@@ -1,6 +1,7 @@
 # AWS
 .aws-sam/
 template.yaml
+samconfig.toml
 
 # Config
 function/user_mapping.json
